@@ -1,0 +1,17 @@
+# Python files
+__pycache__/
+*.pyc
+
+# Secret files
+*.json
+CLIENT_ID.txt
+CLIENT_SECRET.txt
+TOKEN.txt
+Internal_API_KEY.txt
+Token.txt
+# Environment files
+.env
+
+# IDE files
+.vscode/
+.idea/
