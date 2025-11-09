@@ -22,16 +22,23 @@ The bot is built using Python and leverages popular libraries like python-telegr
 * `/connectauth`: Connect your Google Calendar account
 * `/addevent`: Add a contest event to your Google Calendar
 
-## 🗂️ Folder Structure
+## start of the Bot
+![Bot - Start](images/start.jpg)
 
-```mermaid
-graph TD;
-  .-->server.py;
-  .-->codeforces.py;
-  .-->requirements.txt;
-  .-->LICENSE;
-  .-->gitignore;
-```
+
+## nextcontest of the Bot
+![Bot - nextcontest](images/nextcontest.jpg)
+![Bot - nextcontest2](images/nextcontest2.jpg)
+
+## connectauth of the Bot
+![Bot - nextcontest](images/auth.jpg)
+
+## addevent of the Bot
+![Bot - nextcontest](images/event_add.jpg)
+![Bot - nextcontest](images/event_add_2.jpg)
+
+
+
 
 ## 🛠️ Tech Stack
 
