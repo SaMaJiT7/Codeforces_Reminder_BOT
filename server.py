@@ -2,19 +2,22 @@ from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi import Header, HTTPException
 from google_auth_oauthlib.flow import Flow
+from dotenv import load_dotenv
 import json, os
+
+load_dotenv()
 
 app = FastAPI()
 
-CLIENT_ID  = "837036947469-hupbt93evofo4p2k4kduk0etgl9j9e2q.apps.googleusercontent.com"
-CLIENT_SECRET = "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"
-REDIRECT_URL = "https://arlo-supertragic-nonprogressively.ngrok-free.dev/oauth2callback"
+CLIENT_ID  = os.getenv("GOOGLE_CLIENT_ID")
+CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+REDIRECT_URL = os.getenv("REDIRECT_URL")
 SCOPES = [
     "https://www.googleapis.com/auth/calendar.events",
     "https://www.googleapis.com/auth/calendar.readonly"
 ]
 
-Internal_API_KEY = "PryKUMZn_hupbt93evofo4p_internal_CFBOT_26420"
+Internal_API_KEY = os.getenv("INTERNAL_API_KEY")
 
 
 TOKENS_FILE = "user_tokens.json"

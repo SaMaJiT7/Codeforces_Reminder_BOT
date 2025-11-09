@@ -1,6 +1,8 @@
+from telegram.ext import Application
 import requests
 from requests.exceptions import HTTPError
 import datetime
+from dotenv import load_dotenv
 from telegram import Bot, Update
 from telegram.ext import CommandHandler, Updater, CallbackContext, ApplicationBuilder , ContextTypes, CallbackQueryHandler
 from typing import List, Dict
@@ -13,11 +15,14 @@ from googleapiclient.discovery import build
 from datetime import datetime, timedelta
 import shlex
 import secrets
+from telegram import BotCommand
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
-Internal_API_KEY = "PryKUMZn_hupbt93evofo4p_internal_CFBOT_26420"
+load_dotenv()
 
-FASTAPI_SERVER_URL = "https://arlo-supertragic-nonprogressively.ngrok-free.dev"
+Internal_API_KEY = os.getenv("INTERNAL_API_KEY")
+
+FASTAPI_SERVER_URL = os.getenv("FASTAPI_SERVER_URL")
 
 
 # --- PERSISTENT STORAGE FOR USER PREFERENCES ---
@@ -133,25 +138,25 @@ def get_upcoming_contests():
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     users_id  = update.effective_user.id # type: ignore
-    # --- FIX 1: Add to the correct set ---
     subscribed_users.add(users_id)
-    # --- FIX 2: Now this save call is correct ---
     save_set_to_file(subscribed_users, USERS_FILE)
+    
+    # --- FIX: Changed command names to match your handlers ---
     welcome_text = (
     "👋 *Hi there!* I'm your **Codeforces Reminder Bot** 🤖\n\n"
     "Here’s what I can do for you:\n"
     "📅 /nextcontest – See upcoming Codeforces contests\n"
     "🎯 /setprefs Div.2 Div.4 – Choose which contest divisions you want reminders for\n"
-    "🔗 /connect_auth – Connect your Google Calendar to auto-add contests\n"
-    "⏰ /add_event – Manually add a custom event or reminder\n\n"
+    "🔗 /connectauth – Connect your Google Calendar to auto-add contests\n"
+    "⏰ /addevent – Manually add a custom event or reminder\n\n"
     "Let’s make sure you *never miss a contest again!* 🚀"
     )
+    
     await update.message.reply_text(  # type: ignore
         welcome_text,
         parse_mode="Markdown",
         disable_web_page_preview=True
     )
-
 
 async def setprefs(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
@@ -356,7 +361,7 @@ async def get_creds_for_user(user_id: int):
 
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.get(f"{FASTAPI_SERVER_URL}/get_user_tokens", headers=headers, params=Params ,timeout=10.0)
+            response = await client.get(f"{FASTAPI_SERVER_URL}/get_user_tokens", headers=headers, params=Params ,timeout=10.0) # type: ignore
             response.raise_for_status()
 
             token_data = response.json()
@@ -496,29 +501,64 @@ async def add_event_to_calendar(update: Update, context: ContextTypes.DEFAULT_TY
         await update.message.reply_text("❌ Sorry, I couldn't add the event. Please try to /auth again.") # type: ignore
 
 
-def main():
-    TOKEN = "8264731968:AAF-iil_Juf8dBChXxv9RPGrhJ1ypRe_cAc"
+async def post_init(application: Application):
+    """
+    This function runs *after* the bot is initialized
+    but *before* polling starts.
+    """
+    print("Setting bot commands...")
+    commands = [
+        BotCommand("start", "Subscribe to notifications"),
+        BotCommand("nextcontest", "Show upcoming contests"),
+        BotCommand("setprefs", "Set your preferred divisions"),
+        BotCommand("connectauth", "Connect your Google Calendar"),
+        BotCommand("addevent", "Manually add an event"),
+    ]
+    
+    try:
+        await application.bot.set_my_commands(commands) # type: ignore
+        print("Bot commands set successfully.")
+    except Exception as e:
+        print(f"Failed to set bot commands: {e}")
 
-    application = ApplicationBuilder().token(TOKEN).build()
+
+
+
+
+
+def main():
+    # 1. Make sure "TELEGRAM_TOKEN" matches your .env file
+    TOKEN = os.getenv("TELEGRAM_TOKEN")
+    if not TOKEN:
+        print("Error: TELEGRAM_TOKEN not found in environment variables!")
+        return
+
+    # 2. Removed the extra dot "..post_init"
+    application = (
+        ApplicationBuilder()
+        .token(TOKEN)
+        .post_init(post_init)
+        .build()
+    ) # type: ignore
+
     application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("setpref", setprefs))
-    application.add_handler(CommandHandler("NextContest", nextcontest))
+    
+    # 3. Fixed "setpref" -> "setprefs"
+    application.add_handler(CommandHandler("setprefs", setprefs))
+    
+    # 4. Fixed "NextContest" -> "nextcontest"
+    application.add_handler(CommandHandler("nextcontest", nextcontest))
 
     application.add_handler(CommandHandler("connectauth", connectgoogle_auth))
-
     application.add_handler(CommandHandler("addevent", add_event_to_calendar))
-
     application.add_handler(CallbackQueryHandler(handle_to_button))
-    
-    
     
     # --- SCHEDULE THE JOB ---
     job_queue = application.job_queue
-    # Runs the 'send_reminders' function every 900 seconds/15 minutes
     job_queue.run_repeating(send_reminders, interval=900) # type: ignore
 
     print("CF Bot is Running with the reminders...")
-    application.run_polling()
+    application.run_polling() # type: ignore
 
 if __name__ == "__main__":
     main()
