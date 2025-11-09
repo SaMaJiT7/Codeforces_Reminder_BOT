@@ -1,175 +1,81 @@
-Codeforces Reminder & Google Calendar Bot
+# Codeforces Reminder Bot 🤖
 
-A comprehensive Telegram bot that sends Codeforces contest reminders, allows users to filter by division, and automatically adds contests to their Google Calendar.
+## 🗂️  Description
 
-This project uses a secure, two-part system:
+The Codeforces Reminder Bot is a Telegram bot designed to help competitive programmers stay on top of their contest schedule. It integrates with Google Calendar to provide personalized reminders for upcoming contests on the Codeforces platform. This project is perfect for programmers who want to stay organized and focused on their coding goals.
 
-A Telegram Bot (codeforces.py) that handles all user interaction.
+The bot is built using Python and leverages popular libraries like python-telegram-bot and FastAPI to provide a seamless experience. With its user-friendly interface and robust features, the Codeforces Reminder Bot is an essential tool for any competitive programmer.
 
-A FastAPI Server (server.py) that manages the secure Google OAuth2 flow and acts as a "token vault" for user credentials.
+## ✨ Key Features
 
-Features
+### Core Features
 
-Contest Notifications: A background job runs every 15 minutes to check for contests starting soon.
+* **Contest Reminders**: Receive notifications for upcoming contests on Codeforces
+* **Google Calendar Integration**: Connect your Google Calendar to schedule events and reminders
+* **User-Friendly Interface**: Interact with the bot using simple commands like `/start`, `/setprefs`, and `/nextcontest`
 
-Google Calendar Integration:
+### Bot Commands
 
-Securely connect a Google account using /connectauth.
-![Bot Preview - auth](images/auth.jpg)
+* `/start`: Initialize the bot and start using it
+* `/setprefs`: Configure your preferences for contest reminders
+* `/nextcontest`: Get information about the next contest
+* `/connectauth`: Connect your Google Calendar account
+* `/addevent`: Add a contest event to your Google Calendar
 
-Add contests to your calendar with a single click using inline buttons.
+## 🗂️ Folder Structure
 
-Manually add custom events with /addevent.
-![Bot Preview - eventadd](images/event_add.jpg)
-![Bot Preview - eventadd2](images/event_add_2.jpg)
+```mermaid
+graph TD;
+  .-->server.py;
+  .-->codeforces.py;
+  .-->requirements.txt;
+  .-->LICENSE;
+  .-->gitignore;
+```
 
-NEXT CONTEST DETAILS:
-![Bot Preview - nextcontest](images/nextcontest.jpg)
-![Bot Preview - nextcontest2](images/nextcontest2.jpg)
+## 🛠️ Tech Stack
 
+![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white&style=for-the-badge)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white&style=for-the-badge)
+![python-telegram-bot](https://img.shields.io/badge/python--telegram--bot-008000?logo=telegram&logoColor=white&style=for-the-badge)
+![Google Calendar API](https://img.shields.io/badge/Google%20Calendar%20API-4285F4?logo=google-calendar&logoColor=white&style=for-the-badge)
+![Codeforces API](https://img.shields.io/badge/Codeforces%20API-0059B3?logo=codeforces&logoColor=white&style=for-the-badge)
 
-Subscribe from reminders (/start).
-![Bot Preview - start](images/start.jpg)
+## ⚙️ Setup Instructions
 
-Set preferred divisions (e.g., "Div. 2") with /setprefs.
+To run the project locally, follow these steps:
 
-Persistent Storage: Uses JSON files to save user preferences, subscriptions, and Google tokens. No data is lost on restart.
+* Clone the repository: `git clone https://github.com/SaMaJiT7/Codeforces_Reminder_BOT.git`
+* Install dependencies: `pip install -r requirements.txt`
+* Set environment variables for Google Calendar API and Codeforces API
+* Run the server: `uvicorn server:app --host 0.0.0.0 --port 8000`
+* Run the bot: `python codeforces.py`
 
-Tech Stack
+## 📈 GitHub Actions
 
-Bot: python-telegram-bot
+This repository uses GitHub Actions to automate testing and deployment. The workflow is triggered on push events to the main branch and runs the following jobs:
 
-Server: fastapi, uvicorn
+* **Linting**: Checks for code style and syntax errors
+* **Testing**: Runs unit tests and integration tests
+* **Deployment**: Deploys the bot to a production environment
 
-Google API: google-api-python-client, google-auth-oauthlib
+```mermaid
+graph TD;
+  push-->linting;
+  push-->testing;
+  push-->deployment;
+```
 
-HTTP Client: httpx (for bot-to-server communication)
 
-Scheduling: apscheduler
 
-Environment: python-dotenv
-
-Data: json, shlex, secrets
-
-Setup & Installation
-
-Follow these steps to run the bot locally.
-
-1. Clone the Repository
-
-git clone [https://github.com/SaMaJiT7/Codeforces_Reminder_BOT.git](https://github.com/SaMaJiT7/Codeforces_Reminder_BOT.git)
-cd Codeforces_Reminder_BOT
-
-
-2. Create requirements.txt
-
-Create a file named requirements.txt and paste this in:
-
-python-telegram-bot
-python-dotenv
-requests
-google-api-python-client
-google-auth-oauthlib
-fastapi
-uvicorn[standard]
-httpx
-apscheduler
-
-
-3. Install Dependencies
-
-pip install -r requirements.txt
-
-
-4. Create Your Secret Files
-
-This project uses a .gitignore file to keep all secret keys off of GitHub. You will need to create these files yourself.
-
-A. Create .env file
-In the root folder, create a .env file for all your API keys:
-
-TELEGRAM_TOKEN=123456:ABC...xyz
-INTERNAL_API_KEY=a-very-long-and-random-password
-FASTAPI_SERVER_URL=[http://127.0.0.1:8000](http://127.0.0.1:8000)
-
-
-TELEGRAM_TOKEN: Get this from BotFather on Telegram.
-
-INTERNAL_API_KEY: Make up a long, random password. The bot and server use this to trust each other.
-
-B. Create client_secrets.json
-This file is for Google OAuth and is used by server.py.
-
-Go to the Google Cloud Console.
-
-Create a new project.
-
-Enable the "Google Calendar API" in the "Library".
-
-Go to "Credentials" and "Create Credentials" > "OAuth client ID".
-
-Select "Web application".
-
-Under "Authorized redirect URIs", add your server's callback URL.
-
-For local testing with uvicorn: http://127.0.0.1:8000/oauth2callback
-
-For testing with ngrok: https://<your-ngrok-url>.ngrok-free.app/oauth2callback
-
-Click "Create", then download the JSON credentials.
-
-Rename the downloaded file to client_secrets.json and place it in your project folder.
-
-5. Run the Project
-
-You must run both the server and the bot in two separate terminals.
-
-Terminal 1: Run the FastAPI Server
-
-uvicorn server:app --reload
-
-
-(This will run the server on http://127.0.0.1:8000)
-
-Terminal 2: Run the Telegram Bot
-
-python codeforces.py
-
-
-Bot Commands
-
-Command
-
-Description
-
-/start
-
-Subscribe to notifications.
-
-/nextcontest
-
-Show upcoming contests with "Add to Calendar" buttons.
-
-/stats <handle>
-
-Get a user's Codeforces rating and rank.
-
-/setprefs <Div. 1>
-
-Set your preferred divisions (e.g., /setprefs Div. 2 Div. 3).
-
-/connectauth
-
-Connect your Google Calendar.
-
-/addevent "<Title>" "<Time>"
-
-Manually add an event (e.g., /addevent "My Event" "2025-11-10T10:00:00").
-
-/unsubscribe
-
-Stop all notifications.
-
-/help
-
-Show this help message.
+<br><br>
+<div align="center">
+<img src="https://avatars.githubusercontent.com/u/139092138?v=4" width="120" />
+<h3>SAMAJIT NANDI</h3>
+<p>No information available.</p>
+</div>
+<br>
+<p align="right">
+<img src="https://gitfull.vercel.app/appLogo.png" width="20"/>  <a href="https://gitfull.vercel.app">Made by GitFull</a>
+</p>
+    
