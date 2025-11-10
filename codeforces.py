@@ -17,6 +17,8 @@ import shlex
 import secrets
 from telegram import BotCommand
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+import bot_storage
+
 
 load_dotenv()
 
@@ -25,74 +27,10 @@ Internal_API_KEY = os.getenv("INTERNAL_API_KEY")
 FASTAPI_SERVER_URL = os.getenv("FASTAPI_SERVER_URL")
 
 
-# --- PERSISTENT STORAGE FOR USER PREFERENCES ---
-DATA_DIR = "/data/db"
-Preferences_FILE = os.path.join(DATA_DIR, "user_prefs.json")
-TOKENS_FILE = os.path.join(DATA_DIR,"user_tokens.json")
-USERS_FILE = os.path.join(DATA_DIR, "subscribed_users.json")
-REMINDED_FILE = os.path.join(DATA_DIR, "reminded_contests.json")
-
-# Create the directory if it doesn't exist
-os.makedirs(DATA_DIR, exist_ok=True)
-
-
-def load_prefs():
-    """Loads user preferences from a JSON file when the bot starts."""
-    try:
-        # 1. Check if the file exists
-        if not os.path.exists(Preferences_FILE):
-            return {}  # Return an empty dict if the file doesn't exist
-
-        # 2. Open and load the file
-        with open(Preferences_FILE, "r") as f:
-            data = json.load(f)
-            
-            # 3. JSON saves all keys as strings. We must convert them
-            #    back to integers for user_ids.
-            return {int(k): v for k, v in data.items()}
-            
-    except json.JSONDecodeError:
-        # This happens if the file is empty or corrupted
-        print(f"Warning: {Preferences_FILE} is empty or corrupt. Starting fresh.")
-        return {}
-    except Exception as e:
-        print(f"Error loading preferences: {e}")
-        return {}
-
-def save_prefs(prefs):
-    with open(Preferences_FILE, "w") as f:
-        json.dump(prefs, f)
-
-
-# --- Generic Set Functions (For Users & Reminders) ---
-def load_set_from_file(filename: str) -> set:
-    """Loads a set from a JSON file."""
-    if not os.path.exists(filename):
-        return set()  # Return an empty set if no file
-    try:
-        with open(filename, "r") as f:
-            data_list = json.load(f)
-            return set(data_list)  # Convert the loaded list back to a set
-    except (json.JSONDecodeError, TypeError):
-        print(f"Warning: Could not decode {filename}. Starting fresh.")
-        return set()
-    except Exception as e:
-        print(f"Error loading {filename}: {e}")
-        return set()
-
-def save_set_to_file(data_set: set, filename: str):
-    """Saves a set to a JSON file."""
-    try:
-        with open(filename, "w") as f:
-            data_list = list(data_set)  # Convert the set to a list for JSON
-            json.dump(data_list, f, indent=4)
-    except Exception as e:
-        print(f"Error saving {filename}: {e}")
-
-
-user_prefs = load_prefs()
-subscribed_users = load_set_from_file(USERS_FILE)
-reminded_contests = load_set_from_file(REMINDED_FILE)
+# Load all data from our new storage file
+user_prefs = bot_storage.load_prefs()
+subscribed_users = bot_storage.load_set_from_file(bot_storage.SUBSCRIBERS_KEY)
+reminded_contests = bot_storage.load_set_from_file(bot_storage.REMINDED_KEY)
 
 
 def get_upcoming_contests():
@@ -144,7 +82,7 @@ def get_upcoming_contests():
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     users_id  = update.effective_user.id # type: ignore
     subscribed_users.add(users_id)
-    save_set_to_file(subscribed_users, USERS_FILE)
+    bot_storage.add_to_set_file(users_id, bot_storage.SUBSCRIBERS_KEY)
     
     # --- FIX: Changed command names to match your handlers ---
     welcome_text = (
@@ -177,7 +115,7 @@ async def setprefs(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     
     user_prefs[user_id] = prefs # type: ignore
-    save_prefs(user_prefs)
+    bot_storage.save_prefs(user_prefs)
 
     await update.message.reply_text(f"Preferences Saved! You will now recieve contest for Divisions: {', '.join(prefs)}") # type: ignore
 
@@ -314,9 +252,10 @@ async def send_reminders(context: ContextTypes.DEFAULT_TYPE):
     for c in contests: # type: ignore
         start_time = c["startTimeSeconds"]
         Time_left = start_time - now
-
-
-        if 0 < Time_left <= 1800 and c["id"] not in reminded_contests: #30 minutes before the contest
+        
+        
+        
+        if 0 < Time_left <= 1800 and not bot_storage.is_in_set_file(c["id"], bot_storage.REMINDED_KEY): #30 minutes before the contest
             for user_id in subscribed_users:
                 prefs = user_prefs.get(user_id, []) # type: ignore
 
@@ -333,8 +272,7 @@ async def send_reminders(context: ContextTypes.DEFAULT_TYPE):
                     print(f"Failed to send Reminde to {user_id}: {e}")
 
             # --- FIX 4 (SPAM): Add contest to the set so we don't send again ---
-            reminded_contests.add(c['id'])
-            save_set_to_file(reminded_contests, REMINDED_FILE)
+            bot_storage.add_to_set_file(c['id'], bot_storage.REMINDED_KEY)
 
 
 async def connectgoogle_auth(update: Update, context: ContextTypes.DEFAULT_TYPE):

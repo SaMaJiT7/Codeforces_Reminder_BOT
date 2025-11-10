@@ -1,84 +1,39 @@
-from fastapi import FastAPI, Request
+import os
+import json
+import secrets
+from fastapi import FastAPI, Request, Header, HTTPException
 from fastapi.responses import RedirectResponse, HTMLResponse
-from fastapi import Header, HTTPException
 from google_auth_oauthlib.flow import Flow
 from dotenv import load_dotenv
-import json, os
+
+# --- Import your new storage file ---
+import server_storage
 
 load_dotenv()
 
-app = FastAPI()
+# --- Config (from .env) ---
+CLIENT_ID = os.getenv("CLIENT_ID")
+CLIENT_SECRET = os.getenv("CLIENT_SECRET")
+Internal_API_KEY = os.getenv("INTERNAL_API_KEY")
+FASTAPI_SERVER_URL = os.getenv("FASTAPI_SERVER_URL")
 
-CLIENT_ID  = os.getenv("GOOGLE_CLIENT_ID")
-CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-REDIRECT_URL = os.getenv("REDIRECT_URL")
+# --- Config (Hardcoded) ---
 SCOPES = [
-    "https://www.googleapis.com/auth/calendar.events",
+    "https.www.googleapis.com/auth/calendar.events",
     "https://www.googleapis.com/auth/calendar.readonly"
 ]
+# This MUST be your public server URL (from Render, not localhost)
+REDIRECT_URL = f"{FASTAPI_SERVER_URL}/oauth2callback"
 
-Internal_API_KEY = os.getenv("INTERNAL_API_KEY")
+app = FastAPI()
 
-
-DATA_DIR = "/data/db"
-TOKENS_FILE = os.path.join(DATA_DIR, "user_tokens.json")
-
-
-# It temporarily maps the random token to the user_id
-PENDING_FILE = os.path.join(DATA_DIR, "pending_auth.json")
-
-def load_tokens():
-    """Loads user tokens from a JSON file."""
-    try:
-        if not os.path.exists(TOKENS_FILE):
-            return {}
-        with open(TOKENS_FILE, "r") as f:
-            data = json.load(f)
-            return {int(k): v for k, v in data.items()}
-    except Exception as e:
-        print(f"Error loading tokens: {e}")
-        return {}
-
-def save_tokens(tokens_dict):
-    """Saves the user tokens dictionary to a JSON file."""
-    try:
-        with open(TOKENS_FILE, "w") as f:
-            json.dump(tokens_dict, f, indent=4)
-    except Exception as e:
-        print(f"Error saving tokens: {e}")
-
-user_tokens = load_tokens()
-print("Loaded tokens on startup:", user_tokens) # Safe, only you can see this in your terminal
-
-
-def load_pending():
-    """Loads pending auth tokens (string keys) from a JSON file."""
-    try:
-        if not os.path.exists(PENDING_FILE):
-            return {}
-        with open(PENDING_FILE, "r") as f:
-            # No int conversion needed, token is already a string
-            return json.load(f)
-    except Exception as e:
-        print(f"Error loading pending tokens: {e}")
-        return {}
-
-def save_pending(pending_dict):
-    """Saves the pending auth dictionary to a JSON file."""
-    try:
-        with open(PENDING_FILE, "w") as f:
-            json.dump(pending_dict, f, indent=4)
-    except Exception as e:
-        print(f"Error saving pending tokens: {e}")
-
-    pending_auth = load_pending()
-    print("Loaded pending auths on startup:", pending_auth)    
-
-@app.get("/")
-async def root():
-    return {"message": "Server is running."}
+# --- DELETED REDUNDANT CODE ---
+# The Redis connection (r) and KEY definitions
+# are now correctly handled inside server_storage.py
+# ------------------------------
 
 def create_flow():
+    """Creates a new Google OAuth Flow instance."""
     return Flow.from_client_config(
         {
             "web": {
@@ -90,45 +45,39 @@ def create_flow():
             }
         },
         scopes=SCOPES
-    ) # type: ignore
+    )
 
+@app.get("/")
+async def root():
+    return {"message": "Codeforces Bot Auth Server is running."}
 
 @app.get("/connect")
-async def connect(token: str, user_id: str):
-    pending_auth  = load_pending()
-    pending_auth[token] = user_id
-    save_pending(pending_auth)
-
+# --- FIX: Changed user_id: str to user_id: int to match the bot ---
+async def connect(token: str, user_id: int):
+    # Use the storage function
+    server_storage.save_pending_auth(token, user_id)
+    
     flow = create_flow()
     flow.redirect_uri = REDIRECT_URL
-
     auth_url, _ = flow.authorization_url(
         access_type="offline",
         include_granted_scopes="true",
         state=token
     )
-
     return RedirectResponse(auth_url)
-
 
 @app.get("/oauth2callback")
 async def oauth2callback(request: Request):
     params = dict(request.query_params)
     code = params.get("code")
-
-    # 1. Get the token back from Google
     token = params.get("state")
 
-    # 2. Find the user_id by looking up the token
-   # --- FIX: Load, Modify, Save ---
-    pending_auth = load_pending()
-    user_id_int = pending_auth.pop(token, None)
+    # Use the storage function
+    user_id_int = server_storage.pop_pending_auth(token)
+
     if not user_id_int:
+        return HTMLResponse(content="<h1>Error: Invalid or expired auth token.</h1><p>Please try connecting from Telegram again.</p>")
 
-        return HTMLResponse(content="<h1>Error: Invalid or expired token.</h1>")
-
-    
-    # 4. Exchange the code for credentials
     flow = create_flow()
     flow.redirect_uri = REDIRECT_URL
     
@@ -139,12 +88,8 @@ async def oauth2callback(request: Request):
         return HTMLResponse(content="<h1>Error: Failed to fetch token from Google.</h1>")
 
     creds = flow.credentials
-
-    # 5. ATOMIC READ-MODIFY-WRITE
-    # This is the correct logic from your post
-    current_tokens = load_tokens()
-
-    current_tokens[user_id_int] = {
+    
+    token_data = {
         "token": creds.token,
         "refresh_token": creds.refresh_token,
         "token_uri": creds.token_uri, # type: ignore
@@ -152,32 +97,23 @@ async def oauth2callback(request: Request):
         "client_secret": creds.client_secret,
         "scopes": creds.scopes
     }
-
-    save_tokens(current_tokens)
-
-    # --- ADD THIS LINE ---
+    
+    # Use the storage function
+    server_storage.save_token_for_user(user_id_int, token_data)
+    
     print(f"✅ [AUTH SUCCESS] Token saved for user: {user_id_int}")
-    # ---------------------
+    return HTMLResponse(content="<h2>✅ Google Calendar connected!</h2><p>You can close this tab.</p>")
 
-    # 6. Send success message
-    html = """
-    <h2>✅ Google Calendar connected successfully!</h2>
-    <p>You can close this tab and return to Telegram now.</p>
-    """
-    return HTMLResponse(content=html)
-
-
-@app.get("/get_user_tokens")
+# --- FIX: Renamed endpoint to /get-user-token to match bot ---
+@app.get("/get-user-token")
 async def get_single_token(user_id: int, x_api_key: str = Header(None)):
-
     if x_api_key != Internal_API_KEY:
         raise HTTPException(status_code=403, detail="Forbidden")
     
-    user_tokens = load_tokens()
-    token_data = user_tokens.get(user_id) # Use int key
+    # Use the storage function
+    token_data = server_storage.load_tokens().get(user_id)
 
     if not token_data:
         raise HTTPException(status_code=404, detail="Token not found")
 
-    # 3. Return ONLY that one user's token
     return token_data
