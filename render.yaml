@@ -1,3 +1,5 @@
+# This file defines all the services AND databases for your app
+
 services:
   # 1. The FastAPI Server (Web Service)
   - type: web
@@ -8,6 +10,10 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
+      # This line links the server to the Redis database
+      - fromDatabase:
+          name: bot-database
+          envVar: REDIS_URL
 
   # 2. The Telegram Bot (Background Worker)
   - type: worker
@@ -18,9 +24,15 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
+      # This line links the bot to the Redis database
+      - fromDatabase:
+          name: bot-database
+          envVar: REDIS_URL
 
-  # 3. The Free Redis Database
-  - type: redis
-    name: bot-database
-    plan: free # This will store all your JSON data
-```
+# 3. The Free Redis Database
+# --- THIS IS THE FIX ---
+# It is now in its own "databases:" block, not inside "services:"
+databases:
+  - name: bot-database
+    type: redis
+    plan: free
