@@ -1,7 +1,13 @@
-# This file defines all the services AND databases for your app
 
+# 1. Define the Database first
+databases:
+  - name: bot-database
+    engine: redis  # Use 'engine: redis', not 'type: redis'
+    plan: free
+
+# 2. Define the Services
 services:
-  # 1. The FastAPI Server (Web Service)
+  # The FastAPI Server (Web Service)
   - type: web
     name: codeforces-server
     env: python
@@ -15,7 +21,7 @@ services:
           name: bot-database
           envVar: REDIS_URL
 
-  # 2. The Telegram Bot (Background Worker)
+  # The Telegram Bot (Background Worker)
   - type: worker
     name: codeforces-bot
     env: python
@@ -28,11 +34,3 @@ services:
       - fromDatabase:
           name: bot-database
           envVar: REDIS_URL
-
-# 3. The Free Redis Database
-databases:
-  # --- THIS IS THE FIX ---
-  # Changed 'type: redis' to 'engine: redis'
-  - name: bot-database
-    engine: redis
-    plan: free
