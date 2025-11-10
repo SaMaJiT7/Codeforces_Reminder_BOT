@@ -30,9 +30,9 @@ services:
           envVar: REDIS_URL
 
 # 3. The Free Redis Database
-# --- THIS IS THE FIX ---
-# It is now in its own "databases:" block, not inside "services:"
 databases:
+  # --- THIS IS THE FIX ---
+  # 'name', 'type', and 'plan' are now all at the same indentation level
   - name: bot-database
     type: redis
     plan: free
