@@ -20,12 +20,12 @@ SCOPES = [
 Internal_API_KEY = os.getenv("INTERNAL_API_KEY")
 
 
-TOKENS_FILE = "user_tokens.json"
-user_tokens = {}
+DATA_DIR = "/data/db"
+TOKENS_FILE = os.path.join(DATA_DIR, "user_tokens.json")
 
 
 # It temporarily maps the random token to the user_id
-pending_auth = {}
+PENDING_FILE = os.path.join(DATA_DIR, "pending_auth.json")
 
 def load_tokens():
     """Loads user tokens from a JSON file."""
@@ -50,6 +50,30 @@ def save_tokens(tokens_dict):
 user_tokens = load_tokens()
 print("Loaded tokens on startup:", user_tokens) # Safe, only you can see this in your terminal
 
+
+def load_pending():
+    """Loads pending auth tokens (string keys) from a JSON file."""
+    try:
+        if not os.path.exists(PENDING_FILE):
+            return {}
+        with open(PENDING_FILE, "r") as f:
+            # No int conversion needed, token is already a string
+            return json.load(f)
+    except Exception as e:
+        print(f"Error loading pending tokens: {e}")
+        return {}
+
+def save_pending(pending_dict):
+    """Saves the pending auth dictionary to a JSON file."""
+    try:
+        with open(PENDING_FILE, "w") as f:
+            json.dump(pending_dict, f, indent=4)
+    except Exception as e:
+        print(f"Error saving pending tokens: {e}")
+
+    pending_auth = load_pending()
+    print("Loaded pending auths on startup:", pending_auth)    
+
 @app.get("/")
 async def root():
     return {"message": "Server is running."}
@@ -71,8 +95,9 @@ def create_flow():
 
 @app.get("/connect")
 async def connect(token: str, user_id: str):
+    pending_auth  = load_pending()
     pending_auth[token] = user_id
-
+    save_pending(pending_auth)
 
     flow = create_flow()
     flow.redirect_uri = REDIRECT_URL
@@ -95,10 +120,11 @@ async def oauth2callback(request: Request):
     token = params.get("state")
 
     # 2. Find the user_id by looking up the token
-    # .pop() gets the ID and deletes the token (it's single-use)
+   # --- FIX: Load, Modify, Save ---
+    pending_auth = load_pending()
     user_id_int = pending_auth.pop(token, None)
-
     if not user_id_int:
+
         return HTMLResponse(content="<h1>Error: Invalid or expired token.</h1>")
 
     

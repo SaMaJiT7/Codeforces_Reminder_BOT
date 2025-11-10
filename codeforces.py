@@ -26,10 +26,15 @@ FASTAPI_SERVER_URL = os.getenv("FASTAPI_SERVER_URL")
 
 
 # --- PERSISTENT STORAGE FOR USER PREFERENCES ---
-Preferences_FILE = "user_prefs.json"
-TOKENS_FILE = "user_tokens.json"
-USERS_FILE = "subscribed_users.json"
-REMINDED_FILE = "reminded_contests.json"
+DATA_DIR = "/data/db"
+Preferences_FILE = os.path.join(DATA_DIR, "user_prefs.json")
+TOKENS_FILE = os.path.join(DATA_DIR,"user_tokens.json")
+USERS_FILE = os.path.join(DATA_DIR, "subscribed_users.json")
+REMINDED_FILE = os.path.join(DATA_DIR, "reminded_contests.json")
+
+# Create the directory if it doesn't exist
+os.makedirs(DATA_DIR, exist_ok=True)
+
 
 def load_prefs():
     """Loads user preferences from a JSON file when the bot starts."""
