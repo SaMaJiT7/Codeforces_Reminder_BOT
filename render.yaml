@@ -32,7 +32,7 @@ services:
 # 3. The Free Redis Database
 databases:
   # --- THIS IS THE FIX ---
-  # 'name', 'type', and 'plan' are now all at the same indentation level
+  # Changed 'type: redis' to 'engine: redis'
   - name: bot-database
-    type: redis
+    engine: redis
     plan: free
